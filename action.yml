@@ -2,6 +2,10 @@ name: devassure-action
 description: Run DevAssure CLI commands in GitHub Actions.
 author: DevAssure
 
+branding:
+  icon: "globe"
+  color: "purple"
+
 inputs:
   command:
     description: Command to run (setup, test, run, summary, archive-report).
