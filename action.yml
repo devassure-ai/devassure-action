@@ -1,0 +1,309 @@
+name: devassure-action
+description: Run DevAssure CLI commands in GitHub Actions.
+author: DevAssure
+
+inputs:
+  command:
+    description: Command to run (setup, test, run, summary, archive-report).
+    required: false
+    default: test
+  token:
+    description: DevAssure token. If omitted, DEVASSURE_TOKEN env is used.
+    required: false
+  path:
+    description: Path of the project to be tested (defaults to current directory).
+    required: false
+  source:
+    description: Use this as source branch to find the scope of testing.
+    required: false
+  target:
+    description: Use this as target branch to find the scope of testing.
+    required: false
+  commit_id:
+    description: Use this as commit ID to find the scope of testing.
+    required: false
+  filter:
+    description: Execute only tests matching this filter for run command.
+    required: false
+  query:
+    description: Execute only tests matching this query for run command.
+    required: false
+  tag:
+    description: Execute only tests with this tag for run command.
+    required: false
+  priority:
+    description: Execute only tests with this priority for run command.
+    required: false
+  folder:
+    description: Execute only tests in this folder for run command (relative to .devassure/tests folder).
+    required: false
+  url:
+    description: Your application URL to be tested.
+    required: false
+  headless:
+    description: Headless/UI browser for test execution.
+    required: false
+    default: "true"
+  session_id:
+    description: Session ID argument for summary/archive-report commands.
+    required: false
+  archive:
+    description: Archive reports after test execution.
+    required: false
+    default: "true"
+  minimum_score:
+    description: Minimum acceptable score for validation.
+    required: false
+    default: "75"
+  workers:
+    description: Worker count for test/run commands. Must be an integer greater than 0.
+    required: false
+
+outputs:
+  archive_path:
+    description: Archived report path produced by archive-report.
+    value: ${{ steps.archive_report.outputs.archive_path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate Node.js version
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if ! command -v node >/dev/null 2>&1; then
+          echo "Error: Node.js is required but was not found on PATH. Install Node.js 20 or above." >&2
+          exit 1
+        fi
+
+        node_version="$(node --version)"
+        node_major="$(printf '%s' "$node_version" | sed -E 's/^v([0-9]+).*/\1/')"
+
+        if ! [[ "$node_major" =~ ^[0-9]+$ ]]; then
+          echo "Error: Unable to parse Node.js version from '$node_version'. Node.js 20 or above is required." >&2
+          exit 1
+        fi
+
+        if [ "$node_major" -lt 20 ]; then
+          echo "Error: Node.js 20 or above is required. Found $node_version." >&2
+          exit 1
+        fi
+
+    - name: Install DevAssure CLI
+      shell: bash
+      run: |
+        set -euo pipefail
+        npm i -g @devassure/cli@1
+
+    - name: Print DevAssure version
+      shell: bash
+      run: |
+        set -euo pipefail
+        devassure version
+
+    - name: Resolve and configure token
+      shell: bash
+      env:
+        INPUT_TOKEN: ${{ inputs.token }}
+        FALLBACK_TOKEN: ${{ env.DEVASSURE_TOKEN }}
+      run: |
+        set -euo pipefail
+
+        resolved_token="$INPUT_TOKEN"
+        if [ -z "$resolved_token" ]; then
+          resolved_token="$FALLBACK_TOKEN"
+        fi
+
+        if [ -z "$resolved_token" ]; then
+          echo "Error: DevAssure token is required. Pass inputs.token or set env DEVASSURE_TOKEN (for example from secrets.DEVASSURE_TOKEN)." >&2
+          exit 1
+        fi
+
+        devassure add-token "$resolved_token"
+
+    - name: Run requested command
+      shell: bash
+      env:
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_SOURCE: ${{ inputs.source }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_COMMIT_ID: ${{ inputs.commit_id }}
+        INPUT_FILTER: ${{ inputs.filter }}
+        INPUT_QUERY: ${{ inputs.query }}
+        INPUT_TAG: ${{ inputs.tag }}
+        INPUT_PRIORITY: ${{ inputs.priority }}
+        INPUT_FOLDER: ${{ inputs.folder }}
+        INPUT_URL: ${{ inputs.url }}
+        INPUT_HEADLESS: ${{ inputs.headless }}
+        INPUT_SESSION_ID: ${{ inputs.session_id }}
+        INPUT_WORKERS: ${{ inputs.workers }}
+      run: |
+        set -euo pipefail
+
+        command_name="$INPUT_COMMAND"
+        case "$command_name" in
+          setup|test|run|summary|archive-report)
+            ;;
+          *)
+            echo "Error: Unsupported command '$command_name'. Allowed: setup, test, run, summary, archive-report." >&2
+            exit 1
+            ;;
+        esac
+
+        cmd="devassure $command_name"
+
+        add_arg() {
+          local arg_name="$1"
+          local arg_value="$2"
+          if [ -n "$arg_value" ]; then
+            cmd="$cmd --${arg_name}=\"${arg_value}\""
+          fi
+        }
+
+        case "$command_name" in
+          setup)
+            ;;
+          test)
+            resolved_headless="$INPUT_HEADLESS"
+            if [ -z "$resolved_headless" ]; then
+              resolved_headless="true"
+            fi
+            if [ -n "$INPUT_WORKERS" ]; then
+              if ! [[ "$INPUT_WORKERS" =~ ^[0-9]+$ ]] || [ "$INPUT_WORKERS" -le 0 ]; then
+                echo "Error: workers must be an integer greater than 0. Received '$INPUT_WORKERS'." >&2
+                exit 1
+              fi
+            fi
+            add_arg "path" "$INPUT_PATH"
+            add_arg "source" "$INPUT_SOURCE"
+            add_arg "target" "$INPUT_TARGET"
+            add_arg "commit_id" "$INPUT_COMMIT_ID"
+            add_arg "url" "$INPUT_URL"
+            add_arg "workers" "$INPUT_WORKERS"
+            cmd="$cmd --headless=\"${resolved_headless}\""
+            ;;
+          run)
+            resolved_headless="$INPUT_HEADLESS"
+            if [ -z "$resolved_headless" ]; then
+              resolved_headless="true"
+            fi
+            if [ -n "$INPUT_WORKERS" ]; then
+              if ! [[ "$INPUT_WORKERS" =~ ^[0-9]+$ ]] || [ "$INPUT_WORKERS" -le 0 ]; then
+                echo "Error: workers must be an integer greater than 0. Received '$INPUT_WORKERS'." >&2
+                exit 1
+              fi
+            fi
+            add_arg "path" "$INPUT_PATH"
+            add_arg "filter" "$INPUT_FILTER"
+            add_arg "query" "$INPUT_QUERY"
+            add_arg "tag" "$INPUT_TAG"
+            add_arg "priority" "$INPUT_PRIORITY"
+            add_arg "folder" "$INPUT_FOLDER"
+            add_arg "url" "$INPUT_URL"
+            add_arg "workers" "$INPUT_WORKERS"
+            cmd="$cmd --headless=\"${resolved_headless}\""
+            ;;
+          summary)
+            if [ -n "$INPUT_SESSION_ID" ]; then
+              cmd="$cmd --session_id=\"$INPUT_SESSION_ID\""
+            else
+              cmd="$cmd --last"
+            fi
+            ;;
+          archive|archive-report)
+            command_name="archive-report"
+            cmd="devassure $command_name"
+            if [ -n "$INPUT_SESSION_ID" ]; then
+              cmd="$cmd --session_id=\"$INPUT_SESSION_ID\""
+            else
+              cmd="$cmd --last"
+            fi
+            ;;
+        esac
+
+        eval "$cmd"
+
+    - name: Show summary for test/run
+      if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        devassure summary --last
+
+    - name: Archive report for test/run
+      id: archive_report
+      if: ${{ (inputs.command == 'test' || inputs.command == 'run') && inputs.archive != 'false' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        archive_log_file="$(mktemp)"
+        devassure archive-report --last --output-dir "$PWD" | tee "$archive_log_file"
+
+        archive_path="$(awk -F 'Test reports are archived in ' '/Test reports are archived in / { print $2 }' "$archive_log_file" | awk 'NF { last = $0 } END { print last }')"
+
+        if [ -z "$archive_path" ]; then
+          echo "Error: Could not parse archived report path from devassure output." >&2
+          exit 1
+        fi
+
+        if [ ! -e "$archive_path" ]; then
+          echo "Error: Parsed archive path does not exist: $archive_path" >&2
+          exit 1
+        fi
+
+        echo "archive_path=$archive_path" >> "$GITHUB_OUTPUT"
+
+    - name: Upload archived report
+      if: ${{ steps.archive_report.outputs.archive_path != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: devassure-report
+        path: ${{ steps.archive_report.outputs.archive_path }}
+        if-no-files-found: error
+
+    - name: Validate minimum score for test/run
+      if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        minimum_score='${{ inputs.minimum_score }}'
+        minimum_score="$(printf '%s' "$minimum_score" | xargs)"
+
+        if ! [[ "$minimum_score" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+          echo "Skipping score check: minimum_score '$minimum_score' is not a valid number."
+          exit 0
+        fi
+
+        if ! awk -v value="$minimum_score" 'BEGIN { exit !(value > 0) }'; then
+          echo "Skipping score check: minimum_score '$minimum_score' is <= 0."
+          exit 0
+        fi
+
+        summary_log_file="$(mktemp)"
+        devassure summary --last | tee "$summary_log_file"
+
+        score_value="$(awk -F 'score:' '/score:/ { print $2; exit }' "$summary_log_file" | xargs)"
+
+        if [ -z "$score_value" ]; then
+          echo "Error: score is missing from devassure summary output." >&2
+          exit 1
+        fi
+
+        if [ "$score_value" = "N/A" ]; then
+          echo "Error: score is N/A in devassure summary output." >&2
+          exit 1
+        fi
+
+        if ! [[ "$score_value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+          echo "Error: score '$score_value' is not a valid number." >&2
+          exit 1
+        fi
+
+        if awk -v score="$score_value" -v minimum="$minimum_score" 'BEGIN { exit !(score < minimum) }'; then
+          echo "Test score '$score_value' is less than the minumum expected score ($minimum_score)" >&2
+          exit 1
+        fi
