@@ -1,4 +1,4 @@
-name: devassure
+name: devassure-action
 description: Run DevAssure CLI commands in GitHub Actions.
 author: DevAssure
 
