@@ -141,6 +141,10 @@ runs:
       run: |
         set -e
 
+        # Must run before any git command: container/self-hosted runners often mount the
+        # workspace with a different uid, which makes Git refuse the repo ("dubious ownership").
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
         if [ ! -d .git ]; then
           echo "::error::DevAssure requires a checked out git repository. Add actions/checkout@v4 before this action."
           exit 1
@@ -166,8 +170,6 @@ runs:
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       run: |
         set -euo pipefail
-
-        git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
         fetch_branch="$DEFAULT_BRANCH"
         if [ -n "$INPUT_TARGET" ]; then
