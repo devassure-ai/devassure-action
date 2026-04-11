@@ -1,4 +1,4 @@
-name: devassure-action
+name: devassure
 description: Run DevAssure CLI commands in GitHub Actions.
 author: DevAssure
 
@@ -64,6 +64,12 @@ inputs:
     required: false
   environment:
     description: Environment to be used for test execution (defaults to default).
+    required: false
+  verbose:
+    description: Enable verbose output for DevAssure commands (true/false).
+    required: false
+  debug:
+    description: Enable debug output for DevAssure commands (true/false).
     required: false
 
 outputs:
@@ -194,6 +200,8 @@ runs:
         INPUT_SESSION_ID: ${{ inputs.session_id }}
         INPUT_WORKERS: ${{ inputs.workers }}
         INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        INPUT_VERBOSE: ${{ inputs.verbose }}
+        INPUT_DEBUG: ${{ inputs.debug }}
       run: |
         set -euo pipefail
 
@@ -217,8 +225,22 @@ runs:
           fi
         }
 
+        add_verbose_arg() {
+          if [ "${INPUT_VERBOSE:-}" = "true" ]; then
+            cmd="$cmd --verbose"
+          fi
+        }
+
+        add_debug_arg() {
+          if [ "${INPUT_DEBUG:-}" = "true" ]; then
+            cmd="$cmd --debug"
+          fi
+        }
+
         case "$command_name" in
           setup)
+            add_verbose_arg
+            add_debug_arg
             ;;
           test)
             resolved_headless="$INPUT_HEADLESS"
@@ -239,6 +261,8 @@ runs:
             add_arg "workers" "$INPUT_WORKERS"
             add_arg "environment" "$INPUT_ENVIRONMENT"
             cmd="$cmd --headless=\"${resolved_headless}\""
+            add_verbose_arg
+            add_debug_arg
             ;;
           run)
             resolved_headless="$INPUT_HEADLESS"
@@ -261,6 +285,8 @@ runs:
             add_arg "workers" "$INPUT_WORKERS"
             add_arg "environment" "$INPUT_ENVIRONMENT"
             cmd="$cmd --headless=\"${resolved_headless}\""
+            add_verbose_arg
+            add_debug_arg
             ;;
           summary)
             if [ -n "$INPUT_SESSION_ID" ]; then
@@ -268,6 +294,8 @@ runs:
             else
               cmd="$cmd --last"
             fi
+            add_verbose_arg
+            add_debug_arg
             ;;
           archive|archive-report)
             command_name="archive-report"
@@ -277,6 +305,8 @@ runs:
             else
               cmd="$cmd --last"
             fi
+            add_verbose_arg
+            add_debug_arg
             ;;
         esac
 
@@ -293,11 +323,21 @@ runs:
       id: archive_report
       if: ${{ (inputs.command == 'test' || inputs.command == 'run') && inputs.archive != 'false' }}
       shell: bash
+      env:
+        INPUT_VERBOSE: ${{ inputs.verbose }}
+        INPUT_DEBUG: ${{ inputs.debug }}
       run: |
         set -euo pipefail
 
         archive_log_file="$(mktemp)"
-        devassure archive-report --last --output-dir "$PWD" | tee "$archive_log_file"
+        cmd="devassure archive-report --last --output-dir \"$PWD\""
+        if [ "${INPUT_VERBOSE:-}" = "true" ]; then
+          cmd="$cmd --verbose"
+        fi
+        if [ "${INPUT_DEBUG:-}" = "true" ]; then
+          cmd="$cmd --debug"
+        fi
+        eval "$cmd" | tee "$archive_log_file"
 
         archive_path="$(awk -F 'Test reports are archived in ' '/Test reports are archived in / { print $2 }' "$archive_log_file" | awk 'NF { last = $0 } END { print last }')"
 
