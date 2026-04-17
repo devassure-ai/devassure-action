@@ -58,7 +58,7 @@ inputs:
   minimum_score:
     description: Minimum acceptable score for validation.
     required: false
-    default: "75"
+    default: 75
   workers:
     description: Worker count for test/run commands. Must be an integer greater than 0.
     required: false
@@ -374,6 +374,8 @@ runs:
         name: JUnit Tests
         path: .devassure-artifacts/*.xml
         reporter: java-junit
+        fail-on-error: false
+        fail-on-empty: false
 
     - name: Upload archived report
       if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
@@ -381,7 +383,7 @@ runs:
       with:
         name: devassure-report
         path: .devassure-artifacts
-        if-no-files-found: error
+        if-no-files-found: warn
 
     - name: Validate minimum score for test/run
       if: ${{ inputs.command == 'test' || inputs.command == 'run' }}

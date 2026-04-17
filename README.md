@@ -60,8 +60,8 @@ jobs:
   uses: devassure-ai/devassure-action@v1
   with:
     command: test
-    minimum_score: "80"
-    workers: "2"
+    minimum_score: 80
+    workers: 2
     path: e2e/tests
     source: staging
     target: production
@@ -80,7 +80,7 @@ jobs:
   uses: devassure-ai/devassure-action@v1
   with:
     command: run
-    workers: "2"
+    workers: 2
     path: e2e
     filter: smoke
     query: "login flow"
