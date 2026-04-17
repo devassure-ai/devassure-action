@@ -113,7 +113,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        devassure version
+        devassure version --no-ui
 
     - name: Resolve and configure token
       shell: bash
@@ -133,7 +133,7 @@ runs:
           exit 1
         fi
 
-        devassure add-token "$resolved_token"
+        devassure add-token "$resolved_token" --no-ui
 
     - name: Validate git checkout for DevAssure
       if: ${{ inputs.command == 'test' }}
@@ -217,7 +217,7 @@ runs:
             ;;
         esac
 
-        cmd="devassure $command_name"
+        cmd="devassure $command_name --no-ui"
 
         add_arg() {
           local arg_name="$1"
@@ -301,7 +301,7 @@ runs:
             ;;
           archive|archive-report)
             command_name="archive-report"
-            cmd="devassure $command_name"
+            cmd="devassure $command_name --no-ui"
             if [ -n "$INPUT_SESSION_ID" ]; then
               cmd="$cmd --session_id=\"$INPUT_SESSION_ID\""
             else
@@ -319,7 +319,33 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        devassure summary --last
+        devassure summary --last --no-ui
+
+    - name: Create artifacts directory for test/run
+      if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$PWD/.devassure-artifacts"
+
+    - name: Export JUnit XML report for test/run
+      if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        export_dir="$PWD/.devassure-artifacts"
+        cmd=(devassure export-report --output-dir "$export_dir" --last --format junit-xml --no-ui)
+        if [ "${INPUT_VERBOSE:-}" = "true" ]; then
+          cmd+=(--verbose)
+        fi
+        if [ "${INPUT_DEBUG:-}" = "true" ]; then
+          cmd+=(--debug)
+        fi
+        printf 'Running:'
+        printf ' %q' "${cmd[@]}"
+        printf '\n'
+        "${cmd[@]}"
 
     - name: Archive report for test/run
       id: archive_report
@@ -331,36 +357,30 @@ runs:
       run: |
         set -euo pipefail
 
-        archive_log_file="$(mktemp)"
-        cmd="devassure archive-report --last --output-dir \"$PWD\""
+        archive_dir="$PWD/.devassure-artifacts"
+        cmd=(devassure archive-report --last --output-dir "$archive_dir" --no-ui)
         if [ "${INPUT_VERBOSE:-}" = "true" ]; then
-          cmd="$cmd --verbose"
+          cmd+=(--verbose)
         fi
         if [ "${INPUT_DEBUG:-}" = "true" ]; then
-          cmd="$cmd --debug"
+          cmd+=(--debug)
         fi
-        eval "$cmd" | tee "$archive_log_file"
+        "${cmd[@]}"
 
-        archive_path="$(awk -F 'Test reports are archived in ' '/Test reports are archived in / { print $2 }' "$archive_log_file" | awk 'NF { last = $0 } END { print last }')"
-
-        if [ -z "$archive_path" ]; then
-          echo "Error: Could not parse archived report path from devassure output." >&2
-          exit 1
-        fi
-
-        if [ ! -e "$archive_path" ]; then
-          echo "Error: Parsed archive path does not exist: $archive_path" >&2
-          exit 1
-        fi
-
-        echo "archive_path=$archive_path" >> "$GITHUB_OUTPUT"
+    - name: Publish test report 
+      if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
+      uses: dorny/test-reporter@v3
+      with:
+        name: JUnit Tests
+        path: .devassure-artifacts/*.xml
+        reporter: java-junit
 
     - name: Upload archived report
-      if: ${{ steps.archive_report.outputs.archive_path != '' }}
+      if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
       uses: actions/upload-artifact@v4
       with:
         name: devassure-report
-        path: ${{ steps.archive_report.outputs.archive_path }}
+        path: .devassure-artifacts
         if-no-files-found: error
 
     - name: Validate minimum score for test/run
@@ -383,7 +403,7 @@ runs:
         fi
 
         summary_log_file="$(mktemp)"
-        devassure summary --last | tee "$summary_log_file"
+        devassure summary --last --no-ui | tee "$summary_log_file"
 
         score_value="$(awk -F 'score:' '/score:/ { print $2; exit }' "$summary_log_file" | xargs)"
 

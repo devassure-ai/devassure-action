@@ -14,6 +14,7 @@ GitHub Action to run [@devassure/cli](https://www.npmjs.com/package/@devassure/c
   - runs `devassure summary --last`
   - validates `score` from `devassure summary --last` against `minimum_score` (default `75`)
   - optionally archives report and uploads artifact.
+  - adds test result details to the GitHub Actions run summary (using [dorny/test-reporter](https://github.com/dorny/test-reporter)).
 
 ## Create a DevAssure token
 
@@ -137,24 +138,24 @@ All inputs are optional.
 
 | Input | Default | Description |
 | --- | --- | --- |
-| `command` | `test` | Command to run: `setup`, `test`, `run`, `summary`, `archive`, `archive-report` |
-| `token` | _empty_ | DevAssure token. Fallback is `env.DEVASSURE_TOKEN` |
-| `path` | _empty_ | Used by `test`, `run` |
-| `source` | _empty_ | Used by `test` |
-| `target` | _empty_ | Used by `test` |
-| `commit_id` | _empty_ | Used by `test` |
-| `filter` | _empty_ | Used by `run` |
-| `query` | _empty_ | Used by `run` |
-| `tag` | _empty_ | Used by `run` |
-| `priority` | _empty_ | Used by `run` |
-| `folder` | _empty_ | Used by `run` |
-| `url` | _empty_ | Used by `test`, `run` |
-| `headless` | `true` | Used by `test`, `run`; always passed to CLI |
-| `session_id` | _empty_ | Used by `summary`, `archive`, `archive-report` |
-| `archive` | `true` | For `test`/`run`, if not `false`, runs `archive-report --last` and uploads artifact |
-| `minimum_score` | `75` | For `test`/`run`, final score gate from `devassure summary --last`; if `<= 0` or non-numeric, score check is skipped |
-| `workers` | _empty_ | Number of parallel browser workers. if provided must be an integer greater than 0 |
-| `environment` | _empty_ | Environment name for `test` and `run` (for example `staging`, `qa`, `production`) |
+| `command` | `test` | DevAssure command to execute: `setup`, `test`, `run`, `summary`, `archive`, or `archive-report` |
+| `token` | _empty_ | DevAssure API token. If unset, falls back to `DEVASSURE_TOKEN` from environment |
+| `path` | _empty_ | Relative project path to run from (useful when tests are in a subdirectory) |
+| `source` | _empty_ | Source branch used by `test` command scope and branch checkout logic |
+| `target` | _empty_ | Target branch used by `test` command scope and comparison baseline |
+| `commit_id` | _empty_ | Commit SHA used by `test` command scope |
+| `filter` | _empty_ | Filter expression for narrowing `run` command execution |
+| `query` | _empty_ | Query string for selecting tests in `run` command |
+| `tag` | _empty_ | Tag-based selector for `run` command |
+| `priority` | _empty_ | Priority-based selector for `run` command |
+| `folder` | _empty_ | Folder selector for `run` command |
+| `url` | _empty_ | Application URL under test for `test` and `run` commands |
+| `headless` | `true` | Headless browser mode flag for `test` and `run` |
+| `session_id` | _empty_ | Specific session id for `summary` or `archive`/`archive-report` (defaults to latest session when empty) |
+| `archive` | `true` | For `test`/`run`, set to `false` to skip `archive-report --last` and artifact archiving |
+| `minimum_score` | `75` | Minimum score threshold for `test`/`run`; job fails when summary score is below this value |
+| `workers` | _empty_ | Worker count for parallel execution in `test`/`run` (must be integer greater than `0`) |
+| `environment` | _empty_ | Environment name passed to `test`/`run` (for example `staging`, `qa`, or `production`) |
 
 ## Command parameter mapping
 
