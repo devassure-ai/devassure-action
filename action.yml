@@ -60,7 +60,7 @@ inputs:
     required: false
     default: 75
   workers:
-    description: Worker count for test/run commands. Must be an integer greater than 0.
+    description: Worker count for test/run. Omit or set to 0 to use the project default; when set above 0, must be a positive integer.
     required: false
   environment:
     description: Environment to be used for test execution (defaults to default).
@@ -239,6 +239,11 @@ runs:
           fi
         }
 
+        effective_workers="${INPUT_WORKERS:-}"
+        if [ "$effective_workers" = "0" ]; then
+          effective_workers=""
+        fi
+
         case "$command_name" in
           setup)
             add_verbose_arg
@@ -249,7 +254,7 @@ runs:
             if [ -z "$resolved_headless" ]; then
               resolved_headless="true"
             fi
-            if [ -n "$INPUT_WORKERS" ]; then
+            if [ -n "${INPUT_WORKERS:-}" ] && [ "${INPUT_WORKERS}" != "0" ]; then
               if ! [[ "$INPUT_WORKERS" =~ ^[0-9]+$ ]] || [ "$INPUT_WORKERS" -le 0 ]; then
                 echo "Error: workers must be an integer greater than 0. Received '$INPUT_WORKERS'." >&2
                 exit 1
@@ -260,7 +265,7 @@ runs:
             add_arg "target" "$INPUT_TARGET"
             add_arg "commit_id" "$INPUT_COMMIT_ID"
             add_arg "url" "$INPUT_URL"
-            add_arg "workers" "$INPUT_WORKERS"
+            add_arg "workers" "$effective_workers"
             add_arg "environment" "$INPUT_ENVIRONMENT"
             cmd="$cmd --headless=\"${resolved_headless}\""
             add_verbose_arg
@@ -271,7 +276,7 @@ runs:
             if [ -z "$resolved_headless" ]; then
               resolved_headless="true"
             fi
-            if [ -n "$INPUT_WORKERS" ]; then
+            if [ -n "${INPUT_WORKERS:-}" ] && [ "${INPUT_WORKERS}" != "0" ]; then
               if ! [[ "$INPUT_WORKERS" =~ ^[0-9]+$ ]] || [ "$INPUT_WORKERS" -le 0 ]; then
                 echo "Error: workers must be an integer greater than 0. Received '$INPUT_WORKERS'." >&2
                 exit 1
@@ -284,7 +289,7 @@ runs:
             add_arg "priority" "$INPUT_PRIORITY"
             add_arg "folder" "$INPUT_FOLDER"
             add_arg "url" "$INPUT_URL"
-            add_arg "workers" "$INPUT_WORKERS"
+            add_arg "workers" "$effective_workers"
             add_arg "environment" "$INPUT_ENVIRONMENT"
             cmd="$cmd --headless=\"${resolved_headless}\""
             add_verbose_arg
