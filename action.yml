@@ -331,7 +331,9 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        mkdir -p "$PWD/.devassure-artifacts"
+        artifact_dir="$(pwd -P)/.devassure-artifacts"
+        mkdir -p "$artifact_dir"
+        echo "DEVASSURE_ARTIFACTS_DIR=$artifact_dir" >> "$GITHUB_ENV"
 
     - name: Export JUnit XML report for test/run
       if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
@@ -339,7 +341,7 @@ runs:
       run: |
         set -euo pipefail
 
-        export_dir="$PWD/.devassure-artifacts"
+        export_dir="${DEVASSURE_ARTIFACTS_DIR:?DEVASSURE_ARTIFACTS_DIR is not set}"
         cmd=(devassure export-report --output-dir "$export_dir" --last --format junit-xml --no-ui)
         if [ "${INPUT_VERBOSE:-}" = "true" ]; then
           cmd+=(--verbose)
@@ -362,7 +364,7 @@ runs:
       run: |
         set -euo pipefail
 
-        archive_dir="$PWD/.devassure-artifacts"
+        archive_dir="${DEVASSURE_ARTIFACTS_DIR:?DEVASSURE_ARTIFACTS_DIR is not set}"
         cmd=(devassure archive-report --last --output-dir "$archive_dir" --no-ui)
         if [ "${INPUT_VERBOSE:-}" = "true" ]; then
           cmd+=(--verbose)
@@ -372,7 +374,7 @@ runs:
         fi
         "${cmd[@]}"
 
-    - name: Publish test report 
+    - name: Publish test report
       if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
       uses: dorny/test-reporter@v3
       with:
@@ -382,6 +384,13 @@ runs:
         fail-on-error: false
         fail-on-empty: false
 
+    - name: List artifacts
+      if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        ls -la .devassure-artifacts/
+
     - name: Upload archived report
       if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
       uses: actions/upload-artifact@v4
@@ -389,6 +398,7 @@ runs:
         name: devassure-report
         path: ${{ github.workspace }}/.devassure-artifacts
         if-no-files-found: warn
+        include-hidden-files: true
 
     - name: Validate minimum score for test/run
       if: ${{ inputs.command == 'test' || inputs.command == 'run' }}
