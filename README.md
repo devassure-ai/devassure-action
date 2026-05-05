@@ -1,8 +1,38 @@
 # devassure-action
 
-GitHub Action to run [@devassure/cli](https://www.npmjs.com/package/@devassure/cli) commands in CI.
+> DevAssure O2 automatically generate & run e2e tests on browsers for every GitHub pull request
 
-## What this action does
+**DevAssure O2 reads your PR, generates the right tests, and runs them before merge. No scripts. No maintenance.**
+
+Works on every commit, branch or pull request.
+
+Action uses the DevAssure CLI - [@devassure/cli](https://www.npmjs.com/package/@devassure/cli).
+
+## How it works
+
+> reads code diff → maps blast radius → generates tests → executes
+
+1. Add the devassure-action to your GitHub Actions workflow and congiure to run it on every pull request.
+2. The action invokes the DevAssure O2 agent which reads the code diff and understands the changes.
+3.Generates extensive end to end UI tests (natural language) to validate the code changes.
+4. Executes the natural language tests on browsers.
+5. Finds the bugs and reports them to the PR along with reports.
+
+## Before vs After DevAssure O2
+
+**Before:**
+❌ Write & maintain test scripts
+❌ Run full regression suite
+❌ Miss edge cases
+
+**After DevAssure O2:**
+✅ Tests generated from PR diff
+✅ Only impacted areas tested
+✅ Bugs caught before merge
+
+Learn more about DevAssure O2 [here](https://devassure.io).
+
+## What the action does
 
 - Installs `@devassure/cli` globally.
 - Prints `devassure version`.
@@ -18,7 +48,7 @@ GitHub Action to run [@devassure/cli](https://www.npmjs.com/package/@devassure/c
 
 ## Create a DevAssure token
 
-1. Log in to [https://app.devassure.io](https://app.devassure.io).
+1. Log in to [https://app.devassure.io](https://app.devassure.io) OR Sign up for free at [https://app.devassure.io/sign_up](https://app.devassure.io/sign_up).
 2. Open your account/settings token section.
 3. Generate a new API token.
 4. Save it as a GitHub repository secret named `DEVASSURE_TOKEN`.
@@ -30,7 +60,7 @@ GitHub Action to run [@devassure/cli](https://www.npmjs.com/package/@devassure/c
 
 ## Usage
 
-### Minimal (defaults to `test`)
+### Default (test pull request / branch)
 
 ```yaml
 name: devassure
@@ -196,3 +226,27 @@ env:
 
 - Recommended baseline for parallel browser execution: `4 vCPU / 16 GB RAM`.
 - If you increase worker count (or browser concurrency), increase machine size accordingly to avoid CPU and memory contention.
+
+## FAQs
+
+### How does minimum score work?
+
+The minimum score is the minimum value that the tests need to achieve to pass. Default is 75
+
+If the score is less than the minimum score, the job will fail.
+
+If the score is greater than the minimum score, the job will pass.
+
+Set minimum to 0 to disable score validation.
+
+### How is credits consumed?
+
+Credits are consumed based on the number of browser interactions done and the complexity of the tests. The usage for each execution can be see in the DevAssure web portal - [/usage](https://app.devassure.io/usage).
+
+### How can I view the complete report?
+
+The complete report is archived and can be downlaoded from the GitHub Actions run summary. The zip file can be opened using DevAssure [CLI](https://www.npmjs.com/package/@devassure/cli) or DevAssure [VSCode extension](https://marketplace.visualstudio.com/items?itemName=devassure.devassure-vscode).
+
+### Can I invoke the agent in my local machine?
+
+Yes, you can invoke the agent in your local machine using the DevAssure CLI npm package - [@devassure/cli](https://www.npmjs.com/package/@devassure/cli).
