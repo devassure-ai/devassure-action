@@ -14,21 +14,21 @@ Action uses the DevAssure CLI - [@devassure/cli](https://www.npmjs.com/package/@
 
 1. Add the devassure-action to your GitHub Actions workflow and congiure to run it on every pull request.
 2. The action invokes the DevAssure O2 agent which reads the code diff and understands the changes.
-3.Generates extensive end to end UI tests (natural language) to validate the code changes.
+3. Generates extensive end to end UI tests (natural language) to validate the code changes.
 4. Executes the natural language tests on browsers.
 5. Finds the bugs and reports them to the PR along with reports.
 
 ## Before vs After DevAssure O2
 
-**Before:**
-❌ Write & maintain test scripts
-❌ Run full regression suite
-❌ Miss edge cases
+**Before:**  
+❌ Write & maintain test scripts  
+❌ Run full regression suite  
+❌ Miss edge cases  
 
-**After DevAssure O2:**
-✅ Tests generated from PR diff
-✅ Only impacted areas tested
-✅ Bugs caught before merge
+**After DevAssure O2:**  
+✅ Tests generated from PR diff  
+✅ Only impacted areas tested  
+✅ Bugs caught before merge  
 
 Learn more about DevAssure O2 [here](https://devassure.io).
 
@@ -231,13 +231,7 @@ env:
 
 ### How does minimum score work?
 
-The minimum score is the minimum value that the tests need to achieve to pass. Default is 75
-
-If the score is less than the minimum score, the job will fail.
-
-If the score is greater than the minimum score, the job will pass.
-
-Set minimum to 0 to disable score validation.
+The minimum score is the minimum value that the tests need to achieve to pass. Default is `75`. If the score is less than the minimum score, the job will fail. If the score is greater than the minimum score, the job will pass. Set `minimum_score` to `0` to disable score validation.
 
 ### How is credits consumed?
 
