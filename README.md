@@ -1,6 +1,6 @@
 # devassure-action
 
-> DevAssure O2 automatically generate & run e2e tests on browsers for every GitHub pull request
+> [!IMPORTANT] DevAssure O2 automatically generate & run e2e tests on browsers for every GitHub pull request
 
 **DevAssure O2 reads your PR, generates the right tests, and runs them before merge. No scripts. No maintenance.**
 
@@ -10,7 +10,7 @@ Action uses the DevAssure CLI - [@devassure/cli](https://www.npmjs.com/package/@
 
 ## How it works
 
-> reads code diff → maps blast radius → generates tests → executes
+> [!IMPORTANT] reads code diff → maps blast radius → generates tests → executes
 
 1. Add the devassure-action to your GitHub Actions workflow and congiure to run it on every pull request.
 2. The action invokes the DevAssure O2 agent which reads the code diff and understands the changes.
@@ -186,6 +186,7 @@ All inputs are optional.
 | `minimum_score` | `75` | Minimum score threshold for `test`/`run`; job fails when summary score is below this value |
 | `workers` | _empty_ | Worker count for parallel execution in `test`/`run` (must be integer greater than `0`) |
 | `environment` | _empty_ | Environment name passed to `test`/`run` (for example `staging`, `qa`, or `production`) |
+| `commit_tests` | `false` | When `true`, commits generated tests back to the branch (only applies to the `test` command). Requires `contents: write` permission |
 
 ## Command parameter mapping
 
@@ -210,6 +211,50 @@ For `test` and `run`, the action runs a final score check using `devassure summa
 | Output | Description |
 | --- | --- |
 | `archive_path` | Archived report path parsed from `devassure archive-report` output |
+
+## Committing generated tests
+
+When the `test` command generates new or updated tests, you can have the action automatically commit them back to your branch by setting `commit_tests: true`.
+
+Commits are authored by `devassure[bot] <devassure[bot]@users.noreply.github.com>` with the message:
+
+```
+chore: add DevAssure generated tests [skip actions]
+```
+
+### Requirements
+
+- Only works with the `test` command.
+- Your workflow must grant `contents: write` permission. Without it the push step will fail with an error.
+- Fork pull requests are skipped to prevent unintended writes to external repositories.
+
+### Example workflow
+
+```yaml
+name: devassure
+on: [pull_request]
+
+permissions:
+  contents: write
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Run DevAssure
+        uses: devassure-ai/devassure-action@v1
+        with:
+          commit_tests: true
+        env:
+          DEVASSURE_TOKEN: ${{ secrets.DEVASSURE_TOKEN }}
+```
 
 ## Notes
 

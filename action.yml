@@ -71,6 +71,10 @@ inputs:
   debug:
     description: Enable debug output for DevAssure commands (true/false).
     required: false
+  commit_tests:
+    description: Commit generated DevAssure tests back to the branch (true/false). Requires contents write permission.
+    required: false
+    default: "false"
 
 outputs:
   archive_path:
@@ -443,3 +447,21 @@ runs:
           echo "Test score '$score_value' is less than the minumum expected score ($minimum_score)" >&2
           exit 1
         fi
+    
+    - name: Commit generated DevAssure tests
+      if: always() && inputs.commit_tests == 'true' && inputs.command == 'test' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      shell: bash
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git config user.name "devassure[bot]"
+        git config user.email "devassure[bot]@users.noreply.github.com"
+        git add .devassure/tests
+        if git diff --cached --quiet; then
+          echo "No DevAssure test changes to commit"
+          exit 0
+        fi
+        git commit -m "chore: add DevAssure generated tests [skip actions]"
+        git push origin HEAD:${{ github.head_ref || github.ref_name }} || {
+          echo "::error::git push failed. Ensure your workflow has 'permissions: contents: write' to allow pushing commits."
+          exit 1
+        }
